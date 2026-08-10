@@ -1,0 +1,20 @@
+# Python virtual environment
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# SQLite database
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+
+# Pytest cache
+.pytest_cache/
+
+# Environment/secrets
+.env
+
+# VS Code
+.vscode/
