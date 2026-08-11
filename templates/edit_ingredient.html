@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Ingredient{% endblock %}
+
+{% block content %}
+
+<h1>Edit Ingredient</h1>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="edit-form">
+
+    <label>Name</label>
+    <input
+        type="text"
+        name="name"
+        value="{{ form.get('name', ingredient['name']) }}"
+    >
+
+    <label>Unit</label>
+
+    {% set selected_unit = form.get('unit', ingredient['unit']) %}
+
+    <select name="unit">
+        <option value="kg" {% if selected_unit == "kg" %}selected{% endif %}>kg</option>
+        <option value="g" {% if selected_unit == "g" %}selected{% endif %}>g</option>
+        <option value="ml" {% if selected_unit == "ml" %}selected{% endif %}>ml</option>
+        <option value="unit" {% if selected_unit == "unit" %}selected{% endif %}>unit</option>
+    </select>
+
+    <label>Reorder Level</label>
+    <input
+        type="text"
+        name="reorder"
+        value="{{ form.get('reorder', ingredient['reorder_level']) }}"
+    >
+
+    <label>Unit Cost</label>
+    <input
+        type="text"
+        name="cost"
+        value="{{ form.get('cost', ingredient['unit_cost']) }}"
+    >
+
+    <button type="submit">Save Changes</button>
+
+</form>
+
+<p>
+    Current stock: {{ ingredient["stock_quantity"] }} {{ ingredient["unit"] }}
+</p>
+
+<a href="{{ url_for('ingredients') }}">Back</a>
+
+{% endblock %}

@@ -53,3 +53,111 @@ body {
     margin-top: 20px;
     text-align: center;
 }
+.app-layout {
+    min-height: 100vh;
+    display: flex;
+}
+
+.sidebar {
+    width: 220px;
+    background-color: white;
+    border-right: 1px solid #cccccc;
+    padding: 25px;
+}
+
+.sidebar h2 {
+    margin-top: 0;
+}
+
+.sidebar a {
+    display: block;
+    color: black;
+    text-decoration: none;
+    padding: 10px 0;
+}
+
+.sidebar a:hover {
+    text-decoration: underline;
+}
+
+.content {
+    flex: 1;
+    padding: 35px;
+}
+
+.ingredient-form {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+    margin-bottom: 35px;
+}
+
+.ingredient-form label {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.ingredient-form input,
+.ingredient-form select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.ingredient-form button {
+    grid-column: 1 / -1;
+    padding: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+}
+
+th,
+td {
+    border: 1px solid #cccccc;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #eeeeee;
+}
+
+.error-message {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #cc7777;
+    background-color: #fff0f0;
+}
+.actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.actions form {
+    margin: 0;
+}
+
+.actions button {
+    cursor: pointer;
+}
+
+.edit-form {
+    width: 450px;
+    display: grid;
+    gap: 10px;
+}
+
+.edit-form input,
+.edit-form select {
+    padding: 9px;
+}
+
+.edit-form button {
+    padding: 10px;
+    margin-top: 10px;
+}

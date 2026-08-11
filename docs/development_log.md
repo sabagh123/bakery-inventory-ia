@@ -53,3 +53,26 @@ During the first automated test run, the authentication tests could not access t
 **Result:** 4 tests passed.
 
 **Development outcome:** Authentication and session protection were verified before beginning ingredient management.
+
+## 2026-08-11 - Ingredient Management
+
+**Success criteria:** SC-01, SC-02, SC-08, SC-09
+
+Implemented:
+- add and view ingredients
+- validation for numeric and negative values
+- normalized duplicate-name checking
+- ingredient editing
+- soft deactivation using is_active
+- stock adjustment using purchase/correction reasons
+- automatic stock transaction logging
+
+Stock quantity was kept separate from normal ingredient editing so every manual stock change creates an audit record.
+
+Manual and automated tests confirmed valid entry, zero stock, invalid values, duplicate names, editing, deactivation, stock adjustment and prevention of negative stock.
+
+**Test:** `python -m pytest`
+
+**Result:** 12 tests passed.
+
+**Development outcome:** Ingredient management and audited stock adjustments were verified before product and recipe development.

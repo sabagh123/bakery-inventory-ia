@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Ingredients{% endblock %}
+
+{% block content %}
+
+<h1>Ingredient Management</h1>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="ingredient-form">
+
+    <div>
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="{{ form.get('name', '') }}">
+    </div>
+
+    <div>
+        <label for="unit">Unit</label>
+
+        <select id="unit" name="unit">
+            <option value="kg">kg</option>
+            <option value="g">g</option>
+            <option value="ml">ml</option>
+            <option value="unit">unit</option>
+        </select>
+    </div>
+
+    <div>
+        <label for="stock">Stock</label>
+        <input type="text" id="stock" name="stock" value="{{ form.get('stock', '') }}">
+    </div>
+
+    <div>
+        <label for="reorder">Reorder Level</label>
+        <input type="text" id="reorder" name="reorder" value="{{ form.get('reorder', '') }}">
+    </div>
+
+    <div>
+        <label for="cost">Unit Cost</label>
+        <input type="text" id="cost" name="cost" value="{{ form.get('cost', '') }}">
+    </div>
+
+    <button type="submit">Add Ingredient</button>
+
+</form>
+
+<h2>Active Ingredients</h2>
+
+<table>
+
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Unit</th>
+            <th>Stock</th>
+            <th>Reorder Level</th>
+            <th>Unit Cost</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        {% for ingredient in ingredients %}
+
+        <tr>
+            <td>{{ ingredient["name"] }}</td>
+            <td>{{ ingredient["unit"] }}</td>
+            <td>{{ ingredient["stock_quantity"] }}</td>
+            <td>{{ ingredient["reorder_level"] }}</td>
+            <td>{{ ingredient["unit_cost"] }}</td>
+
+            <td class="actions">
+
+                <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient['ingredient_id']) }}">
+                    Edit
+                </a>
+
+                <a href="{{ url_for('adjust_stock', ingredient_id=ingredient['ingredient_id']) }}">
+                    Adjust Stock
+                </a>
+
+                <form
+                    method="POST"
+                    action="{{ url_for('deactivate_ingredient', ingredient_id=ingredient['ingredient_id']) }}"
+                >
+                    <button type="submit">Deactivate</button>
+                </form>
+
+            </td>
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% endblock %}

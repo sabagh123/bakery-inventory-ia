@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Stock{% endblock %}
+
+{% block content %}
+
+<h1>Adjust Stock</h1>
+
+<h2>{{ ingredient["name"] }}</h2>
+
+<p>
+    Current stock:
+    {{ ingredient["stock_quantity"] }}
+    {{ ingredient["unit"] }}
+</p>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="edit-form">
+
+    <label>Quantity Change</label>
+    <input
+        type="text"
+        name="change"
+        placeholder="Example: 5 or -0.5"
+    >
+
+    <label>Reason</label>
+
+    <select name="reason">
+        <option value="Purchase">Purchase</option>
+        <option value="correction">Correction</option>
+    </select>
+
+    <button type="submit">Save Adjustment</button>
+
+</form>
+
+<a href="{{ url_for('ingredients') }}">Back</a>
+
+{% endblock %}
