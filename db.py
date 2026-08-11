@@ -2,36 +2,29 @@ from pathlib import Path
 import sqlite3
 
 
-BASE_DIR = Path(__file__).resolve().parent
-INSTANCE_DIR = BASE_DIR / "instance"
-DATABASE_PATH = INSTANCE_DIR / "bakery.db"
+base_dir = Path(__file__).resolve().parent
+instance_dir = base_dir / "instance"
+database_path = instance_dir / "bakery.db"
 
 
 def get_connection():
-    """Create and return a connection to the SQLite database."""
-    INSTANCE_DIR.mkdir(exist_ok=True)
+    instance_dir.mkdir(exist_ok=True)
 
-    connection = sqlite3.connect(DATABASE_PATH)
+    db = sqlite3.connect(database_path)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys = ON")
 
-    # Allows rows to be accessed using column names.
-    connection.row_factory = sqlite3.Row
-
-    # SQLite requires foreign-key enforcement to be enabled per connection.
-    connection.execute("PRAGMA foreign_keys = ON")
-
-    return connection
+    return db
 
 
 def init_database():
-    """Create all database tables using schema.sql."""
-    connection = get_connection()
+    db = get_connection()
+    schema_path = base_dir / "schema.sql"
 
-    schema_path = BASE_DIR / "schema.sql"
+    with open(schema_path, "r", encoding="utf-8") as file:
+        db.executescript(file.read())
 
-    with open(schema_path, "r", encoding="utf-8") as schema_file:
-        connection.executescript(schema_file.read())
-
-    connection.close()
+    db.close()
 
 
 if __name__ == "__main__":
