@@ -1,4 +1,5 @@
 import pytest
+import sqlite3
 from werkzeug.security import generate_password_hash
 
 import db as database
@@ -234,6 +235,63 @@ def test_stock_adjustment_creates_log(client):
     assert updated["stock_quantity"] == 15
     assert transaction["quantity_change"] == 5
     assert transaction["reason"] == "Purchase"
+
+
+def test_stock_adjustment_rollback_on_failure(client, monkeypatch):
+    db = database.get_connection()
+    db.execute(
+        "INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)",
+        ("FailTest", "unit", 10, 1, 1.0)
+    )
+    db.commit()
+    ingredient_id = db.execute(
+        "SELECT ingredient_id FROM ingredients WHERE name = 'FailTest'"
+    ).fetchone()["ingredient_id"]
+    db.close()
+
+    original_get_connection = database.get_connection
+
+    class FailConn:
+        def __init__(self, conn, fail_after=3):
+            self._conn = conn
+            self._count = 0
+            self._fail_after = fail_after
+
+        def execute(self, *args, **kwargs):
+            self._count += 1
+            if self._count > self._fail_after:
+                raise sqlite3.Error("simulated failure")
+            return self._conn.execute(*args, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(self._conn, name)
+
+    def fake_get_connection():
+        return FailConn(original_get_connection(), fail_after=3)
+
+    monkeypatch.setattr(database, "get_connection", fake_get_connection)
+
+    response = client.post(
+        f"/ingredients/{ingredient_id}/stock",
+        data={"change": "5", "reason": "Purchase"},
+        follow_redirects=True
+    )
+
+    assert b"Stock adjustment could not be saved." in response.data
+
+    db2 = database.get_connection()
+    stock = db2.execute(
+        "SELECT stock_quantity FROM ingredients WHERE ingredient_id = ?",
+        (ingredient_id,)
+    ).fetchone()["stock_quantity"]
+    tx = db2.execute(
+        "SELECT COUNT(*) AS total FROM stock_transactions WHERE ingredient_id = ?",
+        (ingredient_id,)
+    ).fetchone()["total"]
+    db2.close()
+
+    assert stock == 10
+    assert tx == 0
 
 
 def test_stock_cannot_become_negative(client):

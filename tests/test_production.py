@@ -189,22 +189,25 @@ def test_failed_production_rollback(client, monkeypatch):
     db.close()
 
     # monkeypatch database.get_connection to fail after first few executes
-    real_conn = database.get_connection()
+    original_get_connection = database.get_connection
+
     class FailConn:
         def __init__(self, conn, fail_after=3):
             self._conn = conn
             self._count = 0
             self._fail_after = fail_after
+
         def execute(self, *args, **kwargs):
             self._count += 1
             if self._count > self._fail_after:
                 raise sqlite3.Error("simulated failure")
             return self._conn.execute(*args, **kwargs)
+
         def __getattr__(self, name):
             return getattr(self._conn, name)
 
     def fake_get_connection():
-        return FailConn(real_conn, fail_after=3)
+        return FailConn(original_get_connection(), fail_after=3)
 
     monkeypatch.setattr(database, "get_connection", fake_get_connection)
 

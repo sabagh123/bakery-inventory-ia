@@ -461,19 +461,6 @@ def adjust_stock(ingredient_id):
             try:
                 db.execute("BEGIN")
 
-                # If a test wrapper is used that simulates failures (it may
-                # expose `_fail_after` and `_count`), force it to trigger
-                # now by advancing its internal counter so the next execute
-                # raises. This exercises the rollback path in tests only.
-                if hasattr(db, "_fail_after") and hasattr(db, "_count"):
-                    try:
-                        db._count = db._fail_after
-                        # next execute will increment and exceed fail_after
-                        db.execute("SELECT 1")
-                    except sqlite3.Error:
-                        # allow simulated failure to propagate to outer handler
-                        raise
-
                 db.execute(
                     """
                     UPDATE ingredients
@@ -675,6 +662,8 @@ def capacity():
                     if portions > cap:
                         error = "Requested portions exceed current capacity."
 
+            db_check.close()
+
         if error:
             db = database.get_connection()
             products = db.execute(
@@ -694,12 +683,13 @@ def capacity():
         # perform production transactionally using helper
         try:
             production_id = perform_production(product_id, portions, session["user_id"])
-            return redirect(url_for("capacity", product_id=product_id, success="Production recorded"))
+            return redirect(url_for("capacity", product_id=product_id, success="Production recorded successfully."))
         except sqlite3.Error:
             db = database.get_connection()
             products = db.execute(
                 "SELECT * FROM products WHERE is_active = 1 ORDER BY name"
             ).fetchall()
+            db.close()
 
             error = "Production failed and was rolled back."
             return render_template(
@@ -726,6 +716,7 @@ def capacity():
     ingredient_rows = []
     capacity_value = None
     error = None
+    success = request.args.get("success")
 
     product_id = request.args.get("product_id")
 
@@ -764,7 +755,8 @@ def capacity():
         selected_product=selected_product,
         ingredients=ingredient_rows,
         capacity=capacity_value,
-        error=error
+        error=error,
+        success=success
     )
 
 @app.route("/logout")
