@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Capacity Calculation{% endblock %}
+
+{% block content %}
+
+<h1>Capacity Calculation</h1>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form method="GET" class="capacity-form">
+    <label for="product_id">Select Product</label>
+    <select id="product_id" name="product_id" onchange="this.form.submit()">
+        <option value="">-- Choose a product --</option>
+        {% for product in products %}
+            <option value="{{ product['product_id'] }}" {% if selected_product and selected_product['product_id'] == product['product_id'] %}selected{% endif %}>
+                {{ product['name'] }}
+            </option>
+        {% endfor %}
+    </select>
+</form>
+
+{% if selected_product %}
+    <h2>{{ selected_product['name'] }}</h2>
+
+    {% if ingredients %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Unit</th>
+                    <th>Stock</th>
+                    <th>Quantity Required</th>
+                    <th>Available Portions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ingredient in ingredients %}
+                    <tr>
+                        <td>{{ ingredient['name'] }}</td>
+                        <td>{{ ingredient['unit'] }}</td>
+                        <td>{{ ingredient['stock_quantity'] }}</td>
+                        <td>{{ ingredient['quantity_required'] }}</td>
+                        <td>{{ (ingredient['stock_quantity'] // ingredient['quantity_required']) if ingredient['quantity_required'] > 0 else 0 }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="capacity-result">
+            <strong>Maximum producible portions:</strong>
+            {{ capacity }}
+        </div>
+    {% else %}
+        <p>This product has no recipe ingredients.</p>
+    {% endif %}
+{% endif %}
+
+{% endblock %}

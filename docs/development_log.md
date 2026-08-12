@@ -102,3 +102,28 @@ Created or updated tests for:
 **Result:** 16 tests passed.
 
 **Development outcome:** Products and recipe entry were implemented and validated while preserving existing ingredient and stock management behavior.
+
+## 2026-08-12 - Capacity Calculation
+
+**Success criterion:** SC-04
+
+Implemented:
+- `calculate_capacity(recipe_ingredients)` implemented in app.py
+- capacity is calculated using floor(stock_quantity / quantity_required) for each recipe ingredient
+- the final product capacity is the minimum of those available portions
+- the calculation is read-only and does not modify stock
+- active products can be selected on a protected `/capacity` page
+- ingredient-level stock, required quantity, and available portions are displayed
+- products with no recipe are handled safely
+
+Algorithm:
+- A1 - Maximum producible portions: for each recipe ingredient compute floor(stock_quantity / quantity_required); product capacity is the minimum of those values
+
+Tests:
+- automated tests covered normal limiting-ingredient calculation, exact boundary stock, zero stock, no-recipe handling, and confirmation that stock is unchanged
+
+Test: `python -m pytest`
+
+Result: 21 tests passed
+
+Development outcome: Capacity calculation implemented and validated; read-only assessment ready for production processing milestone.

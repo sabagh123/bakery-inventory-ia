@@ -1,3 +1,4 @@
+import math
 import os
 import sqlite3
 
@@ -11,6 +12,23 @@ from validation import (
     validate_stock_change,
     validate_product
 )
+
+
+def calculate_capacity(recipe_ingredients):
+    if not recipe_ingredients:
+        return 0
+
+    available = []
+    for ingredient in recipe_ingredients:
+        quantity_required = ingredient.get("quantity_required")
+        stock_quantity = ingredient.get("stock_quantity")
+
+        if quantity_required is None or quantity_required <= 0:
+            continue
+
+        available.append(math.floor(stock_quantity / quantity_required))
+
+    return min(available) if available else 0
 
 
 app = Flask(__name__)
@@ -434,6 +452,67 @@ def products():
         "products.html",
         products=product_rows,
         ingredients=ingredient_rows,
+        error=error
+    )
+
+@app.route("/capacity")
+def capacity():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = get_connection()
+
+    products = db.execute(
+        """
+        SELECT *
+        FROM products
+        WHERE is_active = 1
+        ORDER BY name
+        """
+    ).fetchall()
+
+    selected_product = None
+    ingredient_rows = []
+    capacity_value = None
+    error = None
+
+    product_id = request.args.get("product_id")
+
+    if product_id:
+        selected_product = db.execute(
+            "SELECT * FROM products WHERE product_id = ? AND is_active = 1",
+            (product_id,)
+        ).fetchone()
+
+        if selected_product:
+            ingredient_rows = db.execute(
+                """
+                SELECT ri.quantity_required, i.name, i.unit, i.stock_quantity
+                FROM recipe_ingredients ri
+                JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+                WHERE ri.product_id = ?
+                """,
+                (product_id,)
+            ).fetchall()
+
+            capacity_value = calculate_capacity([
+                {
+                    "quantity_required": row["quantity_required"],
+                    "stock_quantity": row["stock_quantity"]
+                }
+                for row in ingredient_rows
+            ])
+        else:
+            error = "Selected product not found."
+
+    db.close()
+
+    return render_template(
+        "capacity.html",
+        products=products,
+        selected_product=selected_product,
+        ingredients=ingredient_rows,
+        capacity=capacity_value,
         error=error
     )
 
