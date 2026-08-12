@@ -53,6 +53,13 @@
             <strong>Maximum producible portions:</strong>
             {{ capacity }}
         </div>
+
+        <form method="POST" class="production-form">
+            <input type="hidden" name="product_id" value="{{ selected_product['product_id'] }}">
+            <label for="portions">Portions to produce</label>
+            <input type="text" id="portions" name="portions">
+            <button type="submit">Record Production</button>
+        </form>
     {% else %}
         <p>This product has no recipe ingredients.</p>
     {% endif %}

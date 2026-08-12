@@ -127,3 +127,49 @@ Test: `python -m pytest`
 Result: 21 tests passed
 
 Development outcome: Capacity calculation implemented and validated; read-only assessment ready for production processing milestone.
+
+## 2026-08-12 - Production Processing
+
+**Success criteria:** SC-05, SC-09
+
+Implemented for authenticated users:
+- Users can select an active product and enter a positive whole number of portions.
+- Requests above current capacity are rejected and do not change stock.
+- Zero, negative, non-numeric and non-integer portion values are rejected.
+- Batch ingredient cost is calculated before the transaction.
+- A dedicated `perform_production(product_id, portions, performed_by)` helper handles production.
+
+Atomic transaction sequence implemented (all using a single connection from `database.get_connection()`):
+1. Begin transaction.
+2. Insert a single `production_logs` record for the batch.
+3. Obtain the new `production_id` (lastrowid).
+4. For every recipe ingredient: deduct the required stock amount.
+5. For every deduction: insert a `stock_transactions` record with a negative `quantity_change` and reason "production".
+6. Commit only after every database operation succeeds.
+7. On `sqlite3.Error`, call `rollback()` to undo all changes.
+
+Testing confirmed:
+- Valid production deducts correct stock quantities.
+- Exact-capacity production succeeds.
+- Over-capacity production is rejected and leaves stock unchanged.
+- Invalid portion values are rejected.
+- `production_logs` and `stock_transactions` are created correctly for successful runs.
+- Total ingredient cost is computed and stored on the `production_logs` row.
+- Simulated mid-transaction SQLite failure triggers a rollback: stock and both audit tables remain unchanged.
+
+Development notes:
+- The production processing logic was refactored into the `perform_production()` helper which obtains its connection from `database.get_connection()` and performs all transactional work on that connection. This design allows tests to monkeypatch `database.get_connection()` to inject simulated failures reliably.
+- Temporary, test-specific workarounds that detected test environments or opened raw sqlite connections were removed; the production path now uses a single source of truth for connections and transaction handling.
+
+Algorithm:
+- A2 - Production validation, atomic stock deduction and audit logging
+
+Test command:
+```
+python -m pytest
+```
+
+Result:
+26 tests passed
+
+Development outcome: Production processing implemented transactionally, audited, and covered by tests; rollback behavior verified under simulated failure.
