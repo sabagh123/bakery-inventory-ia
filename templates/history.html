@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Reports / History{% endblock %}
+
+{% block content %}
+
+<h1>Reports / History</h1>
+
+<section>
+    <h2>Stock Transaction History</h2>
+
+    {% if stock_history %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Ingredient</th>
+                    <th>Quantity Change</th>
+                    <th>Reason</th>
+                    <th>User</th>
+                    <th>Production ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in stock_history %}
+                    <tr>
+                        <td>{{ row['created_at'] }}</td>
+                        <td>{{ row['ingredient_name'] or 'Unknown' }}</td>
+                        <td>{{ row['quantity_change'] }}</td>
+                        <td>{{ row['reason'] }}</td>
+                        <td>{{ row['performed_by'] or 'Unknown' }}</td>
+                        <td>{{ row['production_id'] or '' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No stock transaction history is available.</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Production History</h2>
+
+    {% if production_history %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Product</th>
+                    <th>Portions</th>
+                    <th>Total Ingredient Cost</th>
+                    <th>User</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in production_history %}
+                    <tr>
+                        <td>{{ row['created_at'] }}</td>
+                        <td>{{ row['product_name'] or 'Unknown' }}</td>
+                        <td>{{ row['portions'] }}</td>
+                        <td>{{ row['total_ingredient_cost'] }}</td>
+                        <td>{{ row['performed_by'] or 'Unknown' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No production history is available.</p>
+    {% endif %}
+</section>
+
+{% endblock %}

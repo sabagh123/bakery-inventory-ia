@@ -217,3 +217,33 @@ Result:
 29 tests passed
 
 Development outcome: SC-06 and SC-07 implemented, dashboard and Products page updated, and automated tests added to verify behavior.
+
+## 2026-08-12 - Reports / History and Persistence
+
+**Success criterion:** SC-09
+
+Implemented:
+- Added a protected `/history` route.
+- Replaced the placeholder Reports / History sidebar link with the real route.
+- Added a read-only Stock Transaction History section showing timestamp, ingredient name, quantity change, reason, user and related production ID.
+- Added a read-only Production History section showing timestamp, product name, portions, total ingredient cost and user.
+- Both history sections are ordered newest first.
+- Empty-history states are handled safely with clear messages instead of broken tables.
+
+Testing and persistence verification:
+- Added an explicit SQLite persistence test that commits data, closes the original connection, opens a new connection, and confirms the saved record still exists.
+- Added tests confirming manual stock adjustments appear in stock transaction history.
+- Added tests confirming production runs appear in production history.
+- Added tests confirming production deductions appear in stock transaction history.
+- Added tests confirming history access is read-only.
+- Added a test confirming `/history` is protected from unauthenticated access.
+
+Test command:
+```
+python -m pytest -q
+```
+
+Result:
+34 tests passed
+
+Development outcome: Data persistence and audit history are now accessible and verified through the application.

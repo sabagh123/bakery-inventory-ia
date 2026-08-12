@@ -759,6 +759,42 @@ def capacity():
         success=success
     )
 
+@app.route("/history")
+def history():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = database.get_connection()
+    stock_history = conn.execute(
+        """
+        SELECT st.created_at, i.name AS ingredient_name, st.quantity_change,
+               st.reason, u.username AS performed_by, st.production_id
+        FROM stock_transactions st
+        LEFT JOIN ingredients i ON st.ingredient_id = i.ingredient_id
+        LEFT JOIN users u ON st.performed_by = u.user_id
+        ORDER BY st.created_at DESC
+        """
+    ).fetchall()
+
+    production_history = conn.execute(
+        """
+        SELECT pl.created_at, p.name AS product_name, pl.portions,
+               pl.total_ingredient_cost, u.username AS performed_by
+        FROM production_logs pl
+        LEFT JOIN products p ON pl.product_id = p.product_id
+        LEFT JOIN users u ON pl.performed_by = u.user_id
+        ORDER BY pl.created_at DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "history.html",
+        stock_history=stock_history,
+        production_history=production_history
+    )
+
 @app.route("/logout")
 def logout():
     session.clear()
