@@ -161,3 +161,25 @@ th {
     padding: 10px;
     margin-top: 10px;
 }
+
+.product-form {
+    max-width: 700px;
+    display: grid;
+    gap: 12px;
+    margin-bottom: 35px;
+}
+
+.product-form input,
+.product-form select {
+    padding: 9px;
+}
+
+.recipe-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.product-form button {
+    padding: 10px;
+}

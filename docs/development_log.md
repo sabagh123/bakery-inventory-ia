@@ -76,3 +76,29 @@ Manual and automated tests confirmed valid entry, zero stock, invalid values, du
 **Result:** 12 tests passed.
 
 **Development outcome:** Ingredient management and audited stock adjustments were verified before product and recipe development.
+
+## 2026-08-12 - Products & Recipes
+
+**Success criteria:** SC-02, SC-03, SC-08, SC-09
+
+Implemented:
+- ingredient reactivation for soft-deactivated ingredients
+- separate display of active and inactive ingredients on the Ingredients page
+- reactivation without automatic stock changes, keeping stock adjustment separate
+- many-to-many recipe ingredient support for product creation
+- variable-length recipe rows using JavaScript Add Ingredient / Remove controls
+- validation to reject duplicate recipe ingredients
+- validation to reject recipe quantities of zero or negative values
+- a successful automated test storing a recipe with 5 different ingredients
+
+Created or updated tests for:
+- ingredient reactivation
+- multi-ingredient product recipes
+- duplicate ingredient rejection in recipes
+- invalid recipe quantities
+
+**Test:** `python -m pytest`
+
+**Result:** 16 tests passed.
+
+**Development outcome:** Products and recipe entry were implemented and validated while preserving existing ingredient and stock management behavior.

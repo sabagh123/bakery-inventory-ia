@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Products & Recipes{% endblock %}
+
+{% block content %}
+
+<h1>Products & Recipes</h1>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="product-form">
+
+    <label>Product Name</label>
+    <input type="text" name="name">
+
+    <label>Selling Price</label>
+    <input type="text" name="price">
+
+    <h3>Recipe</h3>
+
+    <div id="recipe-rows">
+
+        <div class="recipe-row">
+            <select name="ingredient_id">
+                {% for ingredient in ingredients %}
+                    <option value="{{ ingredient['ingredient_id'] }}">
+                        {{ ingredient["name"] }} ({{ ingredient["unit"] }})
+                    </option>
+                {% endfor %}
+            </select>
+
+            <input
+                type="text"
+                name="quantity"
+                placeholder="Quantity per portion"
+            >
+        </div>
+
+    </div>
+
+    <button id="add-ingredient" type="button">Add Ingredient</button>
+    <button type="submit">Save Product</button>
+
+</form>
+
+<template id="ingredient-option-template">
+    {% for ingredient in ingredients %}
+        <option value="{{ ingredient['ingredient_id'] }}">
+            {{ ingredient["name"] }} ({{ ingredient["unit"] }})
+        </option>
+    {% endfor %}
+</template>
+
+<script src="{{ url_for('static', filename='js/recipe.js') }}"></script>
+
+<h2>Active Products</h2>
+
+<table>
+
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Selling Price</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        {% for product in products %}
+
+        <tr>
+            <td>{{ product["name"] }}</td>
+            <td>{{ product["selling_price"] }}</td>
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% endblock %}

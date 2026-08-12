@@ -8,7 +8,8 @@ from db import get_connection
 from validation import (
     validate_ingredient,
     validate_ingredient_edit,
-    validate_stock_change
+    validate_stock_change,
+    validate_product
 )
 
 
@@ -82,7 +83,7 @@ def ingredients():
         if name:
             duplicate = db.execute(
                 """
-                SELECT ingredient_id
+                SELECT ingredient_id, is_active
                 FROM ingredients
                 WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
                 """,
@@ -118,7 +119,7 @@ def ingredients():
 
     db = get_connection()
 
-    ingredient_rows = db.execute(
+    active_ingredients = db.execute(
         """
         SELECT *
         FROM ingredients
@@ -127,11 +128,21 @@ def ingredients():
         """
     ).fetchall()
 
+    inactive_ingredients = db.execute(
+        """
+        SELECT *
+        FROM ingredients
+        WHERE is_active = 0
+        ORDER BY name
+        """
+    ).fetchall()
+
     db.close()
 
     return render_template(
         "ingredients.html",
-        ingredients=ingredient_rows,
+        active_ingredients=active_ingredients,
+        inactive_ingredients=inactive_ingredients,
         error=error,
         form=request.form
     )
@@ -230,6 +241,27 @@ def deactivate_ingredient(ingredient_id):
 
     return redirect(url_for("ingredients"))
 
+@app.route("/ingredients/<int:ingredient_id>/reactivate", methods=["POST"])
+def reactivate_ingredient(ingredient_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = get_connection()
+
+    db.execute(
+        """
+        UPDATE ingredients
+        SET is_active = 1
+        WHERE ingredient_id = ?
+        """,
+        (ingredient_id,)
+    )
+
+    db.commit()
+    db.close()
+
+    return redirect(url_for("ingredients"))
+
 
 @app.route("/ingredients/<int:ingredient_id>/stock", methods=["GET", "POST"])
 def adjust_stock(ingredient_id):
@@ -308,6 +340,102 @@ def adjust_stock(ingredient_id):
         error=error
     )
 
+@app.route("/products", methods=["GET", "POST"])
+def products():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = get_connection()
+    error = None
+
+    ingredient_rows = db.execute(
+        """
+        SELECT *
+        FROM ingredients
+        WHERE is_active = 1
+        ORDER BY name
+        """
+    ).fetchall()
+
+    if request.method == "POST":
+        ingredient_ids = request.form.getlist("ingredient_id")
+        quantities = request.form.getlist("quantity")
+
+        errors, name, price, recipe = validate_product(
+            request.form["name"],
+            request.form["price"],
+            ingredient_ids,
+            quantities
+        )
+        
+
+        
+
+        duplicate = db.execute(
+            """
+            SELECT product_id
+            FROM products
+            WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+            """,
+            (name,)
+        ).fetchone()
+
+        if duplicate:
+            errors.append("A product with that name already exists.")
+
+        if not errors:
+            try:
+                db.execute("BEGIN")
+
+                cursor = db.execute(
+                    """
+                    INSERT INTO products (name, selling_price)
+                    VALUES (?, ?)
+                    """,
+                    (name, price)
+                )
+
+                product_id = cursor.lastrowid
+
+                for ingredient_id, quantity in recipe:
+                    db.execute(
+                        """
+                        INSERT INTO recipe_ingredients
+                        (product_id, ingredient_id, quantity_required)
+                        VALUES (?, ?, ?)
+                        """,
+                        (product_id, ingredient_id, quantity)
+                    )
+
+                db.commit()
+                db.close()
+
+                return redirect(url_for("products"))
+
+            except sqlite3.Error:
+                db.rollback()
+                error = "Product could not be saved."
+
+        else:
+            error = " ".join(errors)
+
+    product_rows = db.execute(
+        """
+        SELECT *
+        FROM products
+        WHERE is_active = 1
+        ORDER BY name
+        """
+    ).fetchall()
+
+    db.close()
+
+    return render_template(
+        "products.html",
+        products=product_rows,
+        ingredients=ingredient_rows,
+        error=error
+    )
 
 @app.route("/logout")
 def logout():

@@ -64,7 +64,7 @@
 
     <tbody>
 
-        {% for ingredient in ingredients %}
+        {% for ingredient in active_ingredients %}
 
         <tr>
             <td>{{ ingredient["name"] }}</td>
@@ -98,5 +98,51 @@
     </tbody>
 
 </table>
+
+<h2>Inactive Ingredients</h2>
+
+{% if inactive_ingredients %}
+<table>
+
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Unit</th>
+            <th>Stock</th>
+            <th>Reorder Level</th>
+            <th>Unit Cost</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        {% for ingredient in inactive_ingredients %}
+
+        <tr class="inactive-row">
+            <td>{{ ingredient["name"] }}</td>
+            <td>{{ ingredient["unit"] }}</td>
+            <td>{{ ingredient["stock_quantity"] }}</td>
+            <td>{{ ingredient["reorder_level"] }}</td>
+            <td>{{ ingredient["unit_cost"] }}</td>
+
+            <td class="actions">
+                <form
+                    method="POST"
+                    action="{{ url_for('reactivate_ingredient', ingredient_id=ingredient['ingredient_id']) }}"
+                >
+                    <button type="submit">Reactivate</button>
+                </form>
+            </td>
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+{% else %}
+    <p>No inactive ingredients.</p>
+{% endif %}
 
 {% endblock %}
