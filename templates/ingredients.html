@@ -47,11 +47,11 @@
 
 </form>
 
-<h2>Active Ingredients</h2>
-
-<table>
-
-    <thead>
+<section>
+    <h2>Active Ingredients</h2>
+    <div class="table-wrapper">
+        <table>
+            <thead>
         <tr>
             <th>Name</th>
             <th>Unit</th>
@@ -65,15 +65,13 @@
     <tbody>
 
         {% for ingredient in active_ingredients %}
-
-        <tr>
-            <td>{{ ingredient["name"] }}</td>
-            <td>{{ ingredient["unit"] }}</td>
-            <td>{{ ingredient["stock_quantity"] }}</td>
-            <td>{{ ingredient["reorder_level"] }}</td>
-            <td>{{ ingredient["unit_cost"] }}</td>
-
-            <td class="actions">
+            <tr>
+                <td>{{ ingredient["name"] }}</td>
+                <td>{{ ingredient["unit"] }}</td>
+                <td>{{ ingredient["stock_quantity"] }}</td>
+                <td>{{ ingredient["reorder_level"] }}</td>
+                <td>{{ ingredient["unit_cost"] }}</td>
+                <td class="actions">
 
                 <a href="{{ url_for('edit_ingredient', ingredient_id=ingredient['ingredient_id']) }}">
                     Edit
@@ -94,15 +92,15 @@
         </tr>
 
         {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-    </tbody>
-
-</table>
-
-<h2>Inactive Ingredients</h2>
+    <h2>Inactive Ingredients</h2>
 
 {% if inactive_ingredients %}
-<table>
+    <div class="table-wrapper">
+        <table>
 
     <thead>
         <tr>
@@ -137,12 +135,13 @@
         </tr>
 
         {% endfor %}
-
-    </tbody>
-
-</table>
+            </tbody>
+        </table>
+    </div>
 {% else %}
     <p>No inactive ingredients.</p>
 {% endif %}
+
+</section>
 
 {% endblock %}

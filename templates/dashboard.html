@@ -6,39 +6,45 @@
 
 <h1>Dashboard</h1>
 
-<p>Welcome to the Bakery Management System.</p>
+<p>Welcome to the Bakery Management System. Review inventory, low-stock alerts, and recent transactions at a glance.</p>
 
 <div class="summary-cards">
-	<div class="card">Active ingredients: <strong>{{ active_ingredients_count }}</strong></div>
-	<div class="card">Low-stock ingredients: <strong>{{ low_stock_count }}</strong></div>
-	<div class="card">Active products: <strong>{{ active_products_count }}</strong></div>
-	<div class="card">Recent stock transactions: <strong>{{ recent_transactions|length }}</strong></div>
+    <div class="card">Active ingredients: <strong>{{ active_ingredients_count }}</strong></div>
+    <div class="card">Low-stock ingredients: <strong>{{ low_stock_count }}</strong></div>
+    <div class="card">Active products: <strong>{{ active_products_count }}</strong></div>
+    <div class="card">Recent stock transactions: <strong>{{ recent_transactions|length }}</strong></div>
 </div>
 
 {% if low_stock_rows %}
-	<h2>Low-stock ingredients</h2>
-	<table>
-		<thead>
-			<tr>
-				<th>Name</th>
-				<th>Unit</th>
-				<th>Current Stock</th>
-				<th>Reorder Level</th>
-			</tr>
-		</thead>
-		<tbody>
-			{% for ing in low_stock_rows %}
-			<tr>
-				<td>{{ ing['name'] }}</td>
-				<td>{{ ing['unit'] }}</td>
-				<td>{{ ing['stock_quantity'] }}</td>
-				<td>{{ ing['reorder_level'] }}</td>
-			</tr>
-			{% endfor %}
-		</tbody>
-	</table>
+<section>
+    <h2>Low-stock ingredients</h2>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Unit</th>
+                    <th>Current Stock</th>
+                    <th>Reorder Level</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ing in low_stock_rows %}
+                    <tr>
+                        <td>{{ ing['name'] }}</td>
+                        <td>{{ ing['unit'] }}</td>
+                        <td>{{ ing['stock_quantity'] }}</td>
+                        <td>{{ ing['reorder_level'] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% else %}
-	<p>No low-stock ingredients.</p>
+    <section>
+        <p>No low-stock ingredients.</p>
+    </section>
 {% endif %}
 
 {% endblock %}

@@ -27,31 +27,34 @@
 </form>
 
 {% if selected_product %}
+<section>
     <h2>{{ selected_product['name'] }}</h2>
 
     {% if ingredients %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Ingredient</th>
-                    <th>Unit</th>
-                    <th>Stock</th>
-                    <th>Quantity Required</th>
-                    <th>Available Portions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ingredient in ingredients %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
                     <tr>
-                        <td>{{ ingredient['name'] }}</td>
-                        <td>{{ ingredient['unit'] }}</td>
-                        <td>{{ ingredient['stock_quantity'] }}</td>
-                        <td>{{ ingredient['quantity_required'] }}</td>
-                        <td>{{ (ingredient['stock_quantity'] // ingredient['quantity_required']) if ingredient['quantity_required'] > 0 else 0 }}</td>
+                        <th>Ingredient</th>
+                        <th>Unit</th>
+                        <th>Stock</th>
+                        <th>Quantity Required</th>
+                        <th>Available Portions</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for ingredient in ingredients %}
+                        <tr>
+                            <td>{{ ingredient['name'] }}</td>
+                            <td>{{ ingredient['unit'] }}</td>
+                            <td>{{ ingredient['stock_quantity'] }}</td>
+                            <td>{{ ingredient['quantity_required'] }}</td>
+                            <td>{{ (ingredient['stock_quantity'] // ingredient['quantity_required']) if ingredient['quantity_required'] > 0 else 0 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         <div class="capacity-result">
             <strong>Maximum producible portions:</strong>
@@ -67,6 +70,6 @@
     {% else %}
         <p>This product has no recipe ingredients.</p>
     {% endif %}
+</section>
 {% endif %}
-
 {% endblock %}

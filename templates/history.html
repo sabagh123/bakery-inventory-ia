@@ -10,8 +10,9 @@
     <h2>Stock Transaction History</h2>
 
     {% if stock_history %}
-        <table>
-            <thead>
+        <div class="table-wrapper">
+            <table>
+                <thead>
                 <tr>
                     <th>Timestamp</th>
                     <th>Ingredient</th>
@@ -34,8 +35,10 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
+        
     {% else %}
-        <p>No stock transaction history is available.</p>
+        </p>No stock transaction history is available.</p>
     {% endif %}
 </section>
 
@@ -65,7 +68,7 @@
                 {% endfor %}
             </tbody>
         </table>
-    {% else %}
+        </div>
         <p>No production history is available.</p>
     {% endif %}
 </section>
