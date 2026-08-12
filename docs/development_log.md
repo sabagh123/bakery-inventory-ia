@@ -173,3 +173,47 @@ Result:
 26 tests passed
 
 Development outcome: Production processing implemented transactionally, audited, and covered by tests; rollback behavior verified under simulated failure.
+
+## 2026-08-12 - Low-stock Monitoring (SC-06) and Cost & Contribution (SC-07)
+
+Success criteria: SC-06, SC-07
+
+Implemented SC-06 (Low-stock Monitoring):
+- Added `get_low_stock_ingredients()` which returns active ingredients where `stock_quantity <= reorder_level`.
+- Ingredients exactly equal to their `reorder_level` are included as low-stock.
+- Inactive ingredients (`is_active = 0`) are excluded from low-stock results.
+- Dashboard now displays a low-stock count and a low-stock table listing `name`, `unit`, `stock_quantity`, and `reorder_level`.
+
+Implemented SC-07 (Cost & Contribution):
+- Added `calculate_cost_contribution(product_id)` which computes cost and contribution per portion.
+- `cost_per_portion` is computed as sum(quantity_required * unit_cost) across the product's recipe ingredients.
+- `contribution_per_portion` is computed as `selling_price - cost_per_portion`.
+- Calculations are read-only and do not modify ingredient stock or write audit records.
+- Products with no recipe are handled safely and return `(None, None)`; the Products page displays `N/A` where appropriate.
+
+Dashboard updates:
+- Added `active_ingredients_count`.
+- Added `low_stock_count` and `low_stock_rows` (table on the dashboard).
+- Added `active_products_count`.
+- Added `recent_transactions` (most recent 5 stock transactions) and a small summary card.
+
+Testing covered (automated):
+- below reorder level is low stock
+- exactly equal to reorder level is low stock
+- above reorder level is not low stock
+- inactive low-stock ingredient is excluded
+- product cost per portion calculation
+- contribution calculation (selling price minus cost)
+- zero-cost recipe produces zero cost and correct contribution
+- product with no recipe is handled safely (returns `(None, None)`)
+- calculations do not modify ingredient stock
+
+Test command:
+```
+python -m pytest
+```
+
+Result:
+29 tests passed
+
+Development outcome: SC-06 and SC-07 implemented, dashboard and Products page updated, and automated tests added to verify behavior.

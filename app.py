@@ -100,6 +100,57 @@ def perform_production(product_id, portions, performed_by):
         raise
 
 
+def get_low_stock_ingredients():
+    """Return active ingredients where stock_quantity <= reorder_level."""
+    conn = database.get_connection()
+    rows = conn.execute(
+        """
+        SELECT ingredient_id, name, unit, stock_quantity, reorder_level
+        FROM ingredients
+        WHERE is_active = 1 AND stock_quantity <= reorder_level
+        ORDER BY name
+        """
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def calculate_cost_contribution(product_id):
+    """Return (cost_per_portion, contribution_per_portion) or (None, None) if no recipe.
+
+    cost_per_portion = sum(quantity_required * unit_cost) over recipe ingredients.
+    contribution = selling_price - cost_per_portion (None if product missing)
+    """
+    conn = database.get_connection()
+    rows = conn.execute(
+        """
+        SELECT ri.quantity_required, i.unit_cost
+        FROM recipe_ingredients ri
+        JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+        WHERE ri.product_id = ?
+        """,
+        (product_id,)
+    ).fetchall()
+
+    if not rows:
+        conn.close()
+        return None, None
+
+    cost = sum(r["quantity_required"] * r["unit_cost"] for r in rows)
+
+    prod = conn.execute(
+        "SELECT selling_price FROM products WHERE product_id = ?",
+        (product_id,)
+    ).fetchone()
+    conn.close()
+
+    if prod is None:
+        return cost, None
+
+    contribution = prod["selling_price"] - cost
+    return cost, contribution
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "development-key")
 
@@ -146,7 +197,33 @@ def dashboard():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    return render_template("dashboard.html")
+    conn = database.get_connection()
+
+    active_ingredients_count = conn.execute(
+        "SELECT COUNT(*) as cnt FROM ingredients WHERE is_active = 1"
+    ).fetchone()["cnt"]
+
+    low_stock_rows = get_low_stock_ingredients()
+    low_stock_count = len(low_stock_rows)
+
+    active_products_count = conn.execute(
+        "SELECT COUNT(*) as cnt FROM products WHERE is_active = 1"
+    ).fetchone()["cnt"]
+
+    recent_transactions = conn.execute(
+        "SELECT st.*, i.name as ingredient_name FROM stock_transactions st JOIN ingredients i ON st.ingredient_id = i.ingredient_id ORDER BY st.created_at DESC LIMIT 5"
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "dashboard.html",
+        active_ingredients_count=active_ingredients_count,
+        low_stock_count=low_stock_count,
+        active_products_count=active_products_count,
+        recent_transactions=recent_transactions,
+        low_stock_rows=low_stock_rows,
+    )
 
 
 @app.route("/ingredients", methods=["GET", "POST"])
@@ -527,12 +604,21 @@ def products():
         ORDER BY name
         """
     ).fetchall()
+    # annotate products with cost and contribution
+    products_with_costs = []
+    for p in product_rows:
+        cost, contribution = calculate_cost_contribution(p["product_id"])
+        products_with_costs.append({
+            **dict(p),
+            "cost_per_portion": cost,
+            "contribution_per_portion": contribution,
+        })
 
     db.close()
 
     return render_template(
         "products.html",
-        products=product_rows,
+        products=products_with_costs,
         ingredients=ingredient_rows,
         error=error
     )
