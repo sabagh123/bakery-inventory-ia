@@ -583,7 +583,7 @@ def products():
         else:
             error = " ".join(errors)
 
-    product_rows = db.execute(
+    active_product_rows = db.execute(
         """
         SELECT *
         FROM products
@@ -591,11 +591,28 @@ def products():
         ORDER BY name
         """
     ).fetchall()
-    # annotate products with cost and contribution
+    inactive_product_rows = db.execute(
+        """
+        SELECT *
+        FROM products
+        WHERE is_active = 0
+        ORDER BY name
+        """
+    ).fetchall()
+
     products_with_costs = []
-    for p in product_rows:
+    for p in active_product_rows:
         cost, contribution = calculate_cost_contribution(p["product_id"])
         products_with_costs.append({
+            **dict(p),
+            "cost_per_portion": cost,
+            "contribution_per_portion": contribution,
+        })
+
+    inactive_products_with_costs = []
+    for p in inactive_product_rows:
+        cost, contribution = calculate_cost_contribution(p["product_id"])
+        inactive_products_with_costs.append({
             **dict(p),
             "cost_per_portion": cost,
             "contribution_per_portion": contribution,
@@ -606,9 +623,54 @@ def products():
     return render_template(
         "products.html",
         products=products_with_costs,
+        inactive_products=inactive_products_with_costs,
         ingredients=ingredient_rows,
         error=error
     )
+
+@app.route("/products/<int:product_id>/deactivate", methods=["POST"])
+def deactivate_product(product_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = database.get_connection()
+
+    db.execute(
+        """
+        UPDATE products
+        SET is_active = 0
+        WHERE product_id = ?
+        """,
+        (product_id,)
+    )
+
+    db.commit()
+    db.close()
+
+    return redirect(url_for("products"))
+
+
+@app.route("/products/<int:product_id>/reactivate", methods=["POST"])
+def reactivate_product(product_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = database.get_connection()
+
+    db.execute(
+        """
+        UPDATE products
+        SET is_active = 1
+        WHERE product_id = ?
+        """,
+        (product_id,)
+    )
+
+    db.commit()
+    db.close()
+
+    return redirect(url_for("products"))
+
 
 @app.route("/capacity", methods=["GET", "POST"])
 def capacity():

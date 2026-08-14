@@ -65,6 +65,7 @@
                     <th>Selling Price</th>
                     <th>Cost / Portion</th>
                     <th>Contribution / Portion</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -86,11 +87,64 @@
                                 N/A
                             {% endif %}
                         </td>
+                        <td class="actions">
+                            <form method="POST" action="{{ url_for('deactivate_product', product_id=product['product_id']) }}">
+                                <button type="submit">Deactivate</button>
+                            </form>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+</section>
+
+<section>
+    <h2>Inactive Products</h2>
+    {% if inactive_products %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Selling Price</th>
+                        <th>Cost / Portion</th>
+                        <th>Contribution / Portion</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in inactive_products %}
+                        <tr class="inactive-row">
+                            <td>{{ product["name"] }}</td>
+                            <td>{{ product["selling_price"] }}</td>
+                            <td>
+                                {% if product.cost_per_portion is not none %}
+                                    {{ '%.2f'|format(product.cost_per_portion) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if product.contribution_per_portion is not none %}
+                                    {{ '%.2f'|format(product.contribution_per_portion) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td class="actions">
+                                <form method="POST" action="{{ url_for('reactivate_product', product_id=product['product_id']) }}">
+                                    <button type="submit">Reactivate</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No inactive products.</p>
+    {% endif %}
 </section>
 
 {% endblock %}

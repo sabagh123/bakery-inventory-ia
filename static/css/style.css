@@ -206,6 +206,28 @@ select {
     color: #0f172a;
 }
 
+.low-stock-warning-card {
+    background: #fff7f7;
+    border-color: #e9c6c6;
+    box-shadow: 0 12px 28px rgba(125, 40, 40, 0.06);
+}
+
+.low-stock-warning-card strong {
+    color: #7a1d1d;
+}
+
+.low-stock-warning-row {
+    background: #fff7f7;
+}
+
+.low-stock-warning-row td {
+    background: #fff7f7;
+}
+
+.inactive-row {
+    background: #f8fafc;
+}
+
 form {
     background: #ffffff;
     border: 1px solid #dfe7f1;

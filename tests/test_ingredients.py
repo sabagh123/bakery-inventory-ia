@@ -391,6 +391,168 @@ def test_reactivate_ingredient(client):
     assert reactivated["name"] == "Sugar"
 
 
+def test_deactivate_product(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Flour",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+
+    db = database.get_connection()
+    ingredient = db.execute(
+        "SELECT ingredient_id FROM ingredients WHERE name = 'Flour'"
+    ).fetchone()
+    db.execute(
+        "INSERT INTO products (name, selling_price, is_active) VALUES (?, ?, ?)",
+        ("Cinnamon Roll", 6.0, 1)
+    )
+    product = db.execute(
+        "SELECT * FROM products WHERE name = 'Cinnamon Roll'"
+    ).fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], ingredient["ingredient_id"], 2.0)
+    )
+    db.commit()
+    db.close()
+
+    response = client.post(f"/products/{product['product_id']}/deactivate", follow_redirects=True)
+    assert response.status_code == 200
+
+    db = database.get_connection()
+    updated = db.execute(
+        "SELECT * FROM products WHERE product_id = ?",
+        (product["product_id"],)
+    ).fetchone()
+    db.close()
+
+    assert updated["is_active"] == 0
+
+
+def test_reactivate_product(client):
+    db = database.get_connection()
+    db.execute(
+        "INSERT INTO products (name, selling_price, is_active) VALUES (?, ?, ?)",
+        ("Inactive Loaf", 5.5, 0)
+    )
+    db.commit()
+    product = db.execute(
+        "SELECT * FROM products WHERE name = 'Inactive Loaf'"
+    ).fetchone()
+    db.close()
+
+    response = client.post(f"/products/{product['product_id']}/reactivate", follow_redirects=True)
+    assert response.status_code == 200
+
+    db = database.get_connection()
+    updated = db.execute(
+        "SELECT * FROM products WHERE product_id = ?",
+        (product["product_id"],)
+    ).fetchone()
+    db.close()
+
+    assert updated["is_active"] == 1
+
+
+def test_inactive_products_not_active_list_or_capacity_selection(client):
+    db = database.get_connection()
+    db.execute(
+        "INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)",
+        ("Bread Flour", "kg", 10, 1, 1.0)
+    )
+    ingredient = db.execute(
+        "SELECT ingredient_id FROM ingredients WHERE name = 'Bread Flour'"
+    ).fetchone()
+    db.execute(
+        "INSERT INTO products (name, selling_price, is_active) VALUES (?, ?, ?)",
+        ("Dormant Product", 4.0, 0)
+    )
+    product = db.execute(
+        "SELECT * FROM products WHERE name = 'Dormant Product'"
+    ).fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], ingredient["ingredient_id"], 2.0)
+    )
+    db.commit()
+    db.close()
+
+    db = database.get_connection()
+    active_products = db.execute(
+        "SELECT * FROM products WHERE is_active = 1"
+    ).fetchall()
+    db.close()
+    assert all(row["name"] != "Dormant Product" for row in active_products)
+
+    products_page = client.get("/products")
+    assert b"Inactive Products" in products_page.data
+    assert b"Dormant Product" in products_page.data
+
+    capacity_page = client.get("/capacity")
+    assert b"Dormant Product" not in capacity_page.data
+
+    response = client.post(
+        "/capacity",
+        data={"product_id": product["product_id"], "portions": "1"},
+        follow_redirects=True
+    )
+    assert b"Selected product not found." in response.data
+
+
+def test_deactivate_product_keeps_recipe_and_history(client):
+    db = database.get_connection()
+    db.execute(
+        "INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)",
+        ("Oats", "kg", 10, 1, 1.0)
+    )
+    ingredient = db.execute(
+        "SELECT ingredient_id FROM ingredients WHERE name = 'Oats'"
+    ).fetchone()
+    db.execute(
+        "INSERT INTO products (name, selling_price, is_active) VALUES (?, ?, ?)",
+        ("Granola Bar", 3.5, 1)
+    )
+    product = db.execute(
+        "SELECT * FROM products WHERE name = 'Granola Bar'"
+    ).fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], ingredient["ingredient_id"], 2.0)
+    )
+    db.execute(
+        "INSERT INTO production_logs (product_id, performed_by, portions, total_ingredient_cost) VALUES (?, ?, ?, ?)",
+        (product["product_id"], 1, 4, 8.0)
+    )
+    db.commit()
+    db.close()
+
+    client.post(f"/products/{product['product_id']}/deactivate", follow_redirects=True)
+
+    db = database.get_connection()
+    product_record = db.execute(
+        "SELECT * FROM products WHERE product_id = ?",
+        (product["product_id"],)
+    ).fetchone()
+    recipe_rows = db.execute(
+        "SELECT * FROM recipe_ingredients WHERE product_id = ?",
+        (product["product_id"],)
+    ).fetchall()
+    history_rows = db.execute(
+        "SELECT * FROM production_logs WHERE product_id = ?",
+        (product["product_id"],)
+    ).fetchall()
+    db.close()
+
+    assert product_record["is_active"] == 0
+    assert len(recipe_rows) == 1
+    assert len(history_rows) == 1
+
+
 def test_create_product_with_five_ingredients(client):
     ingredient_names = ["Flour", "Sugar", "Butter", "Eggs", "Milk"]
     ingredient_ids = []

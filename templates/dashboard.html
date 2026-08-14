@@ -10,7 +10,7 @@
 
 <div class="summary-cards">
     <div class="card">Active ingredients: <strong>{{ active_ingredients_count }}</strong></div>
-    <div class="card">Low-stock ingredients: <strong>{{ low_stock_count }}</strong></div>
+    <div class="card{% if low_stock_count > 0 %} low-stock-warning-card{% endif %}">Low-stock ingredients: <strong>{{ low_stock_count }}</strong></div>
     <div class="card">Active products: <strong>{{ active_products_count }}</strong></div>
     <div class="card">Recent stock transactions: <strong>{{ recent_transactions|length }}</strong></div>
 </div>
@@ -30,7 +30,7 @@
             </thead>
             <tbody>
                 {% for ing in low_stock_rows %}
-                    <tr>
+                    <tr class="low-stock-warning-row">
                         <td>{{ ing['name'] }}</td>
                         <td>{{ ing['unit'] }}</td>
                         <td>{{ ing['stock_quantity'] }}</td>
