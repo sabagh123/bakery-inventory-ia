@@ -606,6 +606,344 @@ def test_create_product_with_five_ingredients(client):
     assert [row["quantity_required"] for row in recipe_rows] == [1.0, 2.0, 3.0, 4.0, 5.0]
 
 
+def test_edit_product_name_and_price(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Flour",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Sugar",
+            "unit": "kg",
+            "stock": "8",
+            "reorder": "1",
+            "cost": "2.00"
+        }
+    )
+
+    db = database.get_connection()
+    flour = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()
+    sugar = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Sugar'").fetchone()
+    db.execute(
+        "INSERT INTO products (name, selling_price) VALUES (?, ?)",
+        ("Original Cake", 5.0)
+    )
+    product = db.execute("SELECT * FROM products WHERE name = 'Original Cake'").fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], flour["ingredient_id"], 2.0)
+    )
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], sugar["ingredient_id"], 1.0)
+    )
+    db.commit()
+    db.close()
+
+    get_response = client.get(f"/products/{product['product_id']}/edit")
+    assert b"Original Cake" in get_response.data
+    assert b"5.0" in get_response.data
+
+    response = client.post(
+        f"/products/{product['product_id']}/edit",
+        data={
+            "name": "Updated Cake",
+            "price": "7.50",
+            "ingredient_id": [flour["ingredient_id"], sugar["ingredient_id"]],
+            "quantity": ["2", "1.5"]
+        },
+        follow_redirects=True
+    )
+
+    assert response.status_code == 200
+    assert b"Updated Cake" in response.data
+
+    db = database.get_connection()
+    updated = db.execute(
+        "SELECT * FROM products WHERE product_id = ?",
+        (product["product_id"],)
+    ).fetchone()
+    db.close()
+
+    assert updated["name"] == "Updated Cake"
+    assert updated["selling_price"] == 7.5
+
+
+def test_edit_recipe_quantities(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Flour",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Eggs",
+            "unit": "unit",
+            "stock": "12",
+            "reorder": "2",
+            "cost": "0.50"
+        }
+    )
+
+    db = database.get_connection()
+    flour = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()
+    eggs = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Eggs'").fetchone()
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Buns", 4.0))
+    product = db.execute("SELECT * FROM products WHERE name = 'Buns'").fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], flour["ingredient_id"], 2.0)
+    )
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], eggs["ingredient_id"], 3.0)
+    )
+    db.commit()
+    db.close()
+
+    client.post(
+        f"/products/{product['product_id']}/edit",
+        data={
+            "name": "Buns",
+            "price": "4.00",
+            "ingredient_id": [flour["ingredient_id"], eggs["ingredient_id"]],
+            "quantity": ["3", "2"]
+        },
+        follow_redirects=True
+    )
+
+    db = database.get_connection()
+    recipe_rows = db.execute(
+        "SELECT i.name, ri.quantity_required FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.ingredient_id WHERE ri.product_id = ?",
+        (product["product_id"],)
+    ).fetchall()
+    db.close()
+
+    quantities = {row["name"]: row["quantity_required"] for row in recipe_rows}
+    assert quantities["Flour"] == 3.0
+    assert quantities["Eggs"] == 2.0
+
+
+def test_edit_recipe_ingredients_add_and_remove(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Flour",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Sugar",
+            "unit": "kg",
+            "stock": "8",
+            "reorder": "1",
+            "cost": "2.00"
+        }
+    )
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Milk",
+            "unit": "ml",
+            "stock": "200",
+            "reorder": "10",
+            "cost": "0.20"
+        }
+    )
+
+    db = database.get_connection()
+    flour = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()
+    sugar = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Sugar'").fetchone()
+    milk = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Milk'").fetchone()
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Pastry", 6.0))
+    product = db.execute("SELECT * FROM products WHERE name = 'Pastry'").fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], flour["ingredient_id"], 2.0)
+    )
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], sugar["ingredient_id"], 1.0)
+    )
+    db.commit()
+    db.close()
+
+    client.post(
+        f"/products/{product['product_id']}/edit",
+        data={
+            "name": "Pastry",
+            "price": "6.00",
+            "ingredient_id": [flour["ingredient_id"], milk["ingredient_id"]],
+            "quantity": ["2", "50"]
+        },
+        follow_redirects=True
+    )
+
+    db = database.get_connection()
+    recipe_rows = db.execute(
+        "SELECT i.name, ri.quantity_required FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.ingredient_id WHERE ri.product_id = ? ORDER BY i.name",
+        (product["product_id"],)
+    ).fetchall()
+    ingredients = [row["name"] for row in recipe_rows]
+    db.close()
+
+    assert ingredients == ["Flour", "Milk"]
+
+
+def test_duplicate_ingredient_in_recipe_is_rejected_during_edit(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Flour",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+
+    db = database.get_connection()
+    flour = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Roll", 4.0))
+    product = db.execute("SELECT * FROM products WHERE name = 'Roll'").fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], flour["ingredient_id"], 2.0)
+    )
+    db.commit()
+    db.close()
+
+    response = client.post(
+        f"/products/{product['product_id']}/edit",
+        data={
+            "name": "Roll",
+            "price": "4.00",
+            "ingredient_id": [flour["ingredient_id"], flour["ingredient_id"]],
+            "quantity": ["1", "2"]
+        }
+    )
+
+    assert b"The same ingredient cannot appear twice." in response.data
+
+
+def test_invalid_recipe_quantity_is_rejected_during_edit(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Butter",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+
+    db = database.get_connection()
+    butter = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Butter'").fetchone()
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Biscuit", 8.0))
+    product = db.execute("SELECT * FROM products WHERE name = 'Biscuit'").fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], butter["ingredient_id"], 1.0)
+    )
+    db.commit()
+    db.close()
+
+    response = client.post(
+        f"/products/{product['product_id']}/edit",
+        data={
+            "name": "Biscuit",
+            "price": "8.00",
+            "ingredient_id": [butter["ingredient_id"]],
+            "quantity": ["0"]
+        }
+    )
+
+    assert b"Recipe quantities must be greater than zero." in response.data
+
+
+def test_edit_product_keeps_history_and_production_records(client):
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Flour",
+            "unit": "kg",
+            "stock": "10",
+            "reorder": "1",
+            "cost": "1.00"
+        }
+    )
+    client.post(
+        "/ingredients",
+        data={
+            "name": "Eggs",
+            "unit": "unit",
+            "stock": "12",
+            "reorder": "2",
+            "cost": "0.50"
+        }
+    )
+
+    db = database.get_connection()
+    flour = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()
+    eggs = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Eggs'").fetchone()
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Cake", 5.0))
+    product = db.execute("SELECT * FROM products WHERE name = 'Cake'").fetchone()
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], flour["ingredient_id"], 2.0)
+    )
+    db.execute(
+        "INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)",
+        (product["product_id"], eggs["ingredient_id"], 2.0)
+    )
+    db.execute(
+        "INSERT INTO production_logs (product_id, performed_by, portions, total_ingredient_cost) VALUES (?, ?, ?, ?)",
+        (product["product_id"], 1, 2, 6.0)
+    )
+    db.commit()
+    db.close()
+
+    client.post(
+        f"/products/{product['product_id']}/edit",
+        data={
+            "name": "Cake Deluxe",
+            "price": "7.50",
+            "ingredient_id": [flour["ingredient_id"], eggs["ingredient_id"]],
+            "quantity": ["3", "2"]
+        },
+        follow_redirects=True
+    )
+
+    db = database.get_connection()
+    product_row = db.execute("SELECT * FROM products WHERE product_id = ?", (product["product_id"],)).fetchone()
+    recipe_rows = db.execute("SELECT * FROM recipe_ingredients WHERE product_id = ?", (product["product_id"],)).fetchall()
+    history_rows = db.execute("SELECT * FROM production_logs WHERE product_id = ?", (product["product_id"],)).fetchall()
+    db.close()
+
+    assert product_row["name"] == "Cake Deluxe"
+    assert len(recipe_rows) == 2
+    assert len(history_rows) == 1
+
+
 def test_duplicate_ingredient_in_recipe_is_rejected(client):
     client.post(
         "/ingredients",

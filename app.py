@@ -18,7 +18,7 @@ def calculate_capacity(recipe_ingredients):
     if not recipe_ingredients:
         return 0
 
-    available = []
+    available = []  
     for ingredient in recipe_ingredients:
         quantity_required = ingredient.get("quantity_required")
         stock_quantity = ingredient.get("stock_quantity")
@@ -628,6 +628,120 @@ def products():
         error=error
     )
 
+@app.route("/products/<int:product_id>/edit", methods=["GET", "POST"])
+def edit_product(product_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    db = database.get_connection()
+
+    product = db.execute(
+        "SELECT * FROM products WHERE product_id = ?",
+        (product_id,)
+    ).fetchone()
+
+    if product is None:
+        db.close()
+        return redirect(url_for("products"))
+
+    ingredient_rows = db.execute(
+        """
+        SELECT *
+        FROM ingredients
+        WHERE is_active = 1
+        ORDER BY name
+        """
+    ).fetchall()
+
+    recipe_rows = db.execute(
+        """
+        SELECT ri.recipe_item_id, ri.ingredient_id, ri.quantity_required, i.name, i.unit
+        FROM recipe_ingredients ri
+        JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+        WHERE ri.product_id = ?
+        ORDER BY ri.recipe_item_id
+        """,
+        (product_id,)
+    ).fetchall()
+
+    error = None
+
+    if request.method == "POST":
+        ingredient_ids = request.form.getlist("ingredient_id")
+        quantities = request.form.getlist("quantity")
+
+        errors, name, price, recipe = validate_product(
+            request.form["name"],
+            request.form["price"],
+            ingredient_ids,
+            quantities
+        )
+
+        duplicate = db.execute(
+            """
+            SELECT product_id
+            FROM products
+            WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+            AND product_id != ?
+            """,
+            (name, product_id)
+        ).fetchone()
+
+        if duplicate:
+            errors.append("A product with that name already exists.")
+
+        if not errors:
+            try:
+                db.execute("BEGIN")
+
+                db.execute(
+                    """
+                    UPDATE products
+                    SET name = ?, selling_price = ?
+                    WHERE product_id = ?
+                    """,
+                    (name, price, product_id)
+                )
+
+                db.execute(
+                    "DELETE FROM recipe_ingredients WHERE product_id = ?",
+                    (product_id,)
+                )
+
+                for ingredient_id, quantity in recipe:
+                    db.execute(
+                        """
+                        INSERT INTO recipe_ingredients
+                        (product_id, ingredient_id, quantity_required)
+                        VALUES (?, ?, ?)
+                        """,
+                        (product_id, ingredient_id, quantity)
+                    )
+
+                db.commit()
+                db.close()
+
+                return redirect(url_for("products"))
+
+            except sqlite3.Error:
+                db.rollback()
+                error = "Product could not be saved."
+
+        else:
+            error = " ".join(errors)
+
+    db.close()
+
+    return render_template(
+        "edit_product.html",
+        product=product,
+        ingredients=ingredient_rows,
+        recipe=recipe_rows,
+        error=error,
+        form=request.form
+    )
+
+
 @app.route("/products/<int:product_id>/deactivate", methods=["POST"])
 def deactivate_product(product_id):
     if "user_id" not in session:
@@ -704,7 +818,7 @@ def capacity():
             else:
                 recipe_rows = db_check.execute(
                     """
-                    SELECT ri.quantity_required, i.stock_quantity, i.unit_cost, ri.ingredient_id
+                    SELECT ri.quantity_required, i.stock_quantity, i.unit_cost, ri.ingredient_id, i.name
                     FROM recipe_ingredients ri
                     JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
                     WHERE ri.product_id = ?
@@ -712,19 +826,19 @@ def capacity():
                     (product_id,)
                 ).fetchall()
 
-
                 if not recipe_rows:
                     error = "Product has no recipe and cannot be produced."
                 else:
-                    cap = calculate_capacity([
-                        {"quantity_required": r["quantity_required"], "stock_quantity": r["stock_quantity"]}
-                        for r in recipe_rows
-                    ])
+                    insufficient = []
+                    for row in recipe_rows:
+                        required = row["quantity_required"] * portions
+                        if row["stock_quantity"] < required:
+                            insufficient.append(row["name"])
 
-                    if portions > cap:
-                        error = "Requested portions exceed current capacity."
+                    if insufficient:
+                        error = "Requested portions exceed current capacity. Insufficient stock for: " + ", ".join(insufficient) + "."
 
-            db_check.close()
+                db_check.close()
 
         if error:
             db = database.get_connection()

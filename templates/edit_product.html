@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product{% endblock %}
+
+{% block content %}
+
+<h1>Edit Product</h1>
+
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="product-form">
+
+    <label>Product Name</label>
+    <input
+        type="text"
+        name="name"
+        value="{{ form.get('name', product['name']) }}"
+    >
+
+    <label>Selling Price</label>
+    <input
+        type="text"
+        name="price"
+        value="{{ form.get('price', product['selling_price']) }}"
+    >
+
+    <h3>Recipe</h3>
+
+    <div id="recipe-rows">
+        {% if recipe %}
+            {% for row in recipe %}
+                {% set quantity_values = form.getlist('quantity') if form else [] %}
+                {% set ingredient_values = form.getlist('ingredient_id') if form else [] %}
+                {% set row_selected_ingredient = ingredient_values[loop.index0] if ingredient_values and ingredient_values|length > loop.index0 else row['ingredient_id'] %}
+                <div class="recipe-row">
+                    <select name="ingredient_id">
+                        {% for ingredient in ingredients %}
+                            <option value="{{ ingredient['ingredient_id'] }}" {% if ingredient['ingredient_id'] == row_selected_ingredient %}selected{% endif %}>
+                                {{ ingredient["name"] }} ({{ ingredient["unit"] }})
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <input
+                        type="text"
+                        name="quantity"
+                        placeholder="Quantity per portion"
+                        value="{{ quantity_values[loop.index0] if quantity_values and quantity_values|length > loop.index0 else row['quantity_required'] }}"
+                    >
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="recipe-row">
+                <select name="ingredient_id">
+                    {% for ingredient in ingredients %}
+                        <option value="{{ ingredient['ingredient_id'] }}">
+                            {{ ingredient["name"] }} ({{ ingredient["unit"] }})
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <input
+                    type="text"
+                    name="quantity"
+                    placeholder="Quantity per portion"
+                >
+            </div>
+        {% endif %}
+    </div>
+
+    <button id="add-ingredient" type="button">Add Ingredient</button>
+    <button type="submit">Save Product</button>
+
+</form>
+
+<template id="ingredient-option-template">
+    {% for ingredient in ingredients %}
+        <option value="{{ ingredient['ingredient_id'] }}">
+            {{ ingredient["name"] }} ({{ ingredient["unit"] }})
+        </option>
+    {% endfor %}
+</template>
+
+<script src="{{ url_for('static', filename='js/recipe.js') }}"></script>
+
+<a href="{{ url_for('products') }}">Back</a>
+
+{% endblock %}

@@ -149,6 +149,91 @@ def test_production_above_capacity_rejected(client):
     db.close()
 
 
+def test_insufficient_ingredient_names_are_reported(client):
+    db = database.get_connection()
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Flour", "kg", 2, 1, 1.0))
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Eggs", "unit", 8, 1, 0.5))
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Milk", "ml", 1000, 1, 0.2))
+    db.commit()
+
+    flour_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()["ingredient_id"]
+    eggs_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Eggs'").fetchone()["ingredient_id"]
+    milk_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Milk'").fetchone()["ingredient_id"]
+
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Cake", 5.0))
+    pid = db.execute("SELECT product_id FROM products WHERE name = 'Cake'").fetchone()["product_id"]
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, flour_id, 2.0))
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, eggs_id, 3.0))
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, milk_id, 100.0))
+    db.commit()
+
+    response = client.post("/capacity", data={"product_id": pid, "portions": "3"}, follow_redirects=True)
+    assert b"Insufficient stock for: Flour, Eggs" in response.data
+
+    db = database.get_connection()
+    flour_stock = db.execute("SELECT stock_quantity FROM ingredients WHERE ingredient_id = ?", (flour_id,)).fetchone()["stock_quantity"]
+    eggs_stock = db.execute("SELECT stock_quantity FROM ingredients WHERE ingredient_id = ?", (eggs_id,)).fetchone()["stock_quantity"]
+    milk_stock = db.execute("SELECT stock_quantity FROM ingredients WHERE ingredient_id = ?", (milk_id,)).fetchone()["stock_quantity"]
+    assert flour_stock == 2
+    assert eggs_stock == 8
+    assert milk_stock == 1000
+    db.close()
+
+
+def test_multiple_insufficient_ingredients_are_named(client):
+    db = database.get_connection()
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Flour", "kg", 4, 1, 1.0))
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Sugar", "kg", 3, 1, 1.0))
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Milk", "ml", 500, 1, 0.2))
+    db.commit()
+
+    flour_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()["ingredient_id"]
+    sugar_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Sugar'").fetchone()["ingredient_id"]
+    milk_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Milk'").fetchone()["ingredient_id"]
+
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Bread", 3.0))
+    pid = db.execute("SELECT product_id FROM products WHERE name = 'Bread'").fetchone()["product_id"]
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, flour_id, 2.0))
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, sugar_id, 2.0))
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, milk_id, 200.0))
+    db.commit()
+
+    response = client.post("/capacity", data={"product_id": pid, "portions": "3"}, follow_redirects=True)
+    assert b"Insufficient stock for: Flour, Sugar, Milk" in response.data
+
+
+def test_rejected_production_keeps_every_stock_value_unchanged(client):
+    db = database.get_connection()
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Flour", "kg", 5, 1, 1.0))
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Eggs", "unit", 3, 1, 0.4))
+    db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("Butter", "kg", 1, 1, 2.0))
+    db.commit()
+
+    flour_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Flour'").fetchone()["ingredient_id"]
+    eggs_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Eggs'").fetchone()["ingredient_id"]
+    butter_id = db.execute("SELECT ingredient_id FROM ingredients WHERE name = 'Butter'").fetchone()["ingredient_id"]
+
+    db.execute("INSERT INTO products (name, selling_price) VALUES (?, ?)", ("Loaf", 4.0))
+    pid = db.execute("SELECT product_id FROM products WHERE name = 'Loaf'").fetchone()["product_id"]
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, flour_id, 2.0))
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, eggs_id, 2.0))
+    db.execute("INSERT INTO recipe_ingredients (product_id, ingredient_id, quantity_required) VALUES (?, ?, ?)", (pid, butter_id, 1.0))
+    db.commit()
+
+    response = client.post("/capacity", data={"product_id": pid, "portions": "3"}, follow_redirects=True)
+    assert response.status_code == 200
+    assert b"Insufficient stock for:" in response.data
+
+    db = database.get_connection()
+    rows = db.execute(
+        "SELECT stock_quantity FROM ingredients WHERE ingredient_id IN (?, ?, ?) ORDER BY ingredient_id",
+        (flour_id, eggs_id, butter_id)
+    ).fetchall()
+    assert [row["stock_quantity"] for row in rows] == [5, 3, 1]
+    assert db.execute("SELECT COUNT(*) AS cnt FROM production_logs WHERE product_id = ?", (pid,)).fetchone()["cnt"] == 0
+    db.close()
+
+
 def test_zero_negative_non_numeric_portions_rejected(client):
     db = database.get_connection()
     db.execute("INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost) VALUES (?, ?, ?, ?, ?)", ("B", "unit", 10, 1, 1.0))
